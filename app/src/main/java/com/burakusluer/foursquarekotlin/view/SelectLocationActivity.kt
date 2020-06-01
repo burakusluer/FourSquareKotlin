@@ -11,6 +11,10 @@ import android.location.LocationManager
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.burakusluer.foursquarekotlin.R
@@ -26,7 +30,7 @@ class SelectLocationActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var locationManager: LocationManager
     private lateinit var locationListener: LocationListener
-    var addLocation:Intent?=null
+    var addLocation: Intent? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_select_location)
@@ -36,10 +40,49 @@ class SelectLocationActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        MenuInflater(this@SelectLocationActivity).inflate(R.menu.select_location_options_menu, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.item_select_location_find_me -> {
+                if (ActivityCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    locationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        0,
+                        0F,
+                        locationListener
+                    )
+                    Toast.makeText(
+                        this@SelectLocationActivity,
+                        "this will require some time check your notification bar for gps icon",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    ActivityCompat.requestPermissions(
+                        this@SelectLocationActivity,
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                        0
+                    )
+                }
+
+            }
+
+        }
+        return super.onOptionsItemSelected(item)
+    }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+
         locationListener = object : LocationListener {
             override fun onLocationChanged(location: Location?) {
                 mMap.clear()
@@ -55,12 +98,15 @@ class SelectLocationActivity : AppCompatActivity(), OnMapReadyCallback {
                     locationManager.removeUpdates(locationListener)
                 }
             }
+
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
 
             }
+
             override fun onProviderEnabled(provider: String?) {
 
             }
+
             override fun onProviderDisabled(provider: String?) {
 
             }
@@ -71,12 +117,20 @@ class SelectLocationActivity : AppCompatActivity(), OnMapReadyCallback {
             )
             == PackageManager.PERMISSION_GRANTED
         ) {
-            locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                0,
-                0F,
-                locationListener
-            )
+            if (locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) != null) {
+                val loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                val latlong = LatLng(loc!!.latitude, loc.longitude)
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlong, 15F))
+            } else {
+                locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    0,
+                    0F,
+                    locationListener
+                )
+            }
+
+
         } else
             ActivityCompat.requestPermissions(
                 this@SelectLocationActivity,
@@ -84,17 +138,18 @@ class SelectLocationActivity : AppCompatActivity(), OnMapReadyCallback {
                 0
             )
         mMap.setOnMapLongClickListener {
-             addLocation=Intent()
-            val doubleArray:DoubleArray=DoubleArray(2)
-            doubleArray[0]=it.latitude
-            doubleArray[1]=it.longitude
+            addLocation = Intent()
+            val doubleArray: DoubleArray = DoubleArray(2)
+            doubleArray[0] = it.latitude
+            doubleArray[1] = it.longitude
             addLocation!!.putExtra("locationData", doubleArray)
-            addLocation!!.data=Uri.parse("deneme")
+            addLocation!!.data = Uri.parse("deneme")
             this.finish()
         }
     }
-    override fun finish(){
-        this@SelectLocationActivity.setResult(Activity.RESULT_OK,addLocation)
+
+    override fun finish() {
+        this@SelectLocationActivity.setResult(Activity.RESULT_OK, addLocation)
 
         super.finish()
     }
